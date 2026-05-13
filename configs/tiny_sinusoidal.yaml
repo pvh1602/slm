@@ -1,0 +1,27 @@
+seed: 0
+device: cuda
+
+data:
+  task: add
+  max_digits: 2
+  fixed_width: false
+  train_size: 20000
+  val_size: 1000
+  max_seq_len: 16
+
+model:
+  vocab_size: null
+  d_model: 128
+  n_layers: 2
+  n_heads: 4
+  d_ff: 512
+  dropout: 0.1
+  max_seq_len: 16
+  pos_encoding: sinusoidal
+
+train:
+  batch_size: 64
+  lr: 0.0003
+  steps: 2000
+  eval_every: 200
+  out_dir: runs

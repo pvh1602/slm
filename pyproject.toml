@@ -1,0 +1,13 @@
+[project]
+name = "slm-homework"
+version = "0.1.0"
+description = "Tiny transformer homework scaffold for arithmetic and KV-cache learning."
+requires-python = ">=3.10"
+dependencies = [
+  "torch",
+  "pyyaml",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
