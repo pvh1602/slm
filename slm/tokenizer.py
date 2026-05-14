@@ -37,13 +37,22 @@ class CharTokenizer:
             Build stoi/itos. Put special tokens first for stable ids.
         """
 
-        raise NotImplementedError
+        self.extra_chars = extra_chars
+        tokens = [SpecialTokens.pad, SpecialTokens.bos, SpecialTokens.eos]
+        for ch in extra_chars:
+            if ch not in tokens:
+                tokens.append(ch)
+
+        self.stoi = {tok: i for i, tok in enumerate(tokens)}
+        self.itos = {i: tok for tok, i in self.stoi.items()}
+
+        # raise NotImplementedError
 
     @property
     def vocab_size(self) -> int:
         """Return the number of tokens in the vocabulary."""
 
-        raise NotImplementedError
+        return len(self.stoi)
 
     def encode(self, text: str, add_bos: bool = True, add_eos: bool = True) -> list[int]:
         """Convert a string into token ids.
@@ -57,7 +66,11 @@ class CharTokenizer:
             List of integer token ids.
         """
 
-        raise NotImplementedError
+        # raise NotImplementedError
+        tokens = [SpecialTokens.bos] if add_bos else []
+        tokens += [ch for ch in text]
+        tokens += [SpecialTokens.eos] if add_eos else []
+        return [self.stoi[tok] for tok in tokens]
 
     def decode(self, ids: list[int], skip_special: bool = True) -> str:
         """Convert token ids back into a string.
@@ -70,4 +83,8 @@ class CharTokenizer:
             Decoded string.
         """
 
-        raise NotImplementedError
+        # raise NotImplementedError
+        tokens = [self.itos[i] for i in ids]
+        if skip_special:
+            tokens = [tok for tok in tokens if tok not in [SpecialTokens.bos, SpecialTokens.eos, SpecialTokens.pad]]
+        return "".join(tokens)

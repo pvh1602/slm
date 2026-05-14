@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import math
 import torch
 import torch.nn as nn
 
 
 class SinusoidalPositionalEncoding(nn.Module):
-    """Fixed sinusoidal positional encoding.
+    f"""Fixed sinusoidal positional encoding.
 
     Objective:
         Add deterministic sine/cosine position vectors to token embeddings.
+        For position `p` and channel index `i` (the i-th element in the d_model-dimensional embedding vector), define:
+        PE[p, 2i]   = sin(p / 10000^(2i / d_model))
+        PE[p, 2i+1] = cos(p / 10000^(2i / d_model))
+
+        we have 1 / 10^(1/x) = exp(-log(10)/x)
 
     Expected input:
         x: Tensor [batch, seq_len, d_model]
@@ -22,7 +28,21 @@ class SinusoidalPositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_seq_len: int):
         super().__init__()
         # TODO: create buffer pe with shape [1, max_seq_len, d_model].
-        raise NotImplementedError
+        # raise NotImplementedError
+
+        # self.register_buffer("pe", torch.zeros(1, max_seq_len, d_model))
+        pe = torch.zeros(max_seq_len, d_model)
+        
+        position = torch.arange(max_seq_len).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
+        )
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+
+        self.register_buffer("pe", pe.unsqueeze(0)) # pe.shape = (1, max_seq_len, d_model)
+
+
 
     def forward(self, x: torch.Tensor, start_pos: int = 0) -> torch.Tensor:
         """Add sinusoidal position vectors.
@@ -35,7 +55,8 @@ class SinusoidalPositionalEncoding(nn.Module):
             Position-augmented embeddings [batch, seq_len, d_model].
         """
 
-        raise NotImplementedError
+        seq_len = x.shape[1]
+        return x + self.pe[:,start_pos:start_pos + seq_len]
 
 
 class LearnedAbsolutePositionalEncoding(nn.Module):
@@ -138,3 +159,22 @@ def apply_rope(
     """
 
     raise NotImplementedError
+
+
+
+if __name__ == "__main__":
+
+    d_model = 512
+    max_seq_len = 100
+    bs = 3
+    sin_pe = SinusoidalPositionalEncoding(d_model, max_seq_len)
+    print(sin_pe.pe.shape)
+    x = torch.zeros((bs, max_seq_len, d_model))
+    print(x.shape)
+    out = sin_pe(x)
+    # print(out)
+    # import matplotlib.pyplot as plt
+
+    # cax = plt.matshow(sin_pe.pe.squeeze(0))
+    # plt.gcf().colorbar(cax)
+    # plt.savefig("../assets/sinosoid_pe.png")

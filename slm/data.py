@@ -9,7 +9,7 @@ from typing import Literal
 import torch
 from torch.utils.data import Dataset
 
-from .tokenizer import CharTokenizer
+from .tokenizer import CharTokenizer, SpecialTokens
 
 
 ArithmeticTask = Literal["add", "sub", "mul"]
@@ -39,7 +39,26 @@ def format_problem(
         avoid negative answers or include a '-' sign.
     """
 
-    raise NotImplementedError
+
+    # raise NotImplementedError
+    if task == "add":
+        answer = a + b
+        text = f"{a}+{b}={answer}"
+    elif task == "sub":
+        answer = a - b
+        text = f"{a}-{b}={answer}"
+    elif task == "mul":
+        answer = a * b
+        text = f"{a}*{b}={answer}"
+    else:   
+        raise ValueError(f"Invalid task: {task}")   
+    
+    if fixed_width and task == "add":
+        a_str = str(a).zfill(width)
+        b_str = str(b).zfill(width)
+        answer_str = str(answer).zfill(width + 1)
+        text = f"{a_str}+{b_str}={answer_str}"
+    return text
 
 
 @dataclass
@@ -49,6 +68,7 @@ class ArithmeticExample:
     text: str
     input_ids: list[int]
     target_ids: list[int]
+    loss_mask: list[int]
 
 
 class ArithmeticDataset(Dataset):
@@ -95,7 +115,23 @@ class ArithmeticDataset(Dataset):
 
         # TODO: generate and store examples in self.examples.
         self.examples: list[ArithmeticExample] = []
-        raise NotImplementedError
+        # raise NotImplementedError
+        for _ in range(size):
+            a = self.rng.randint(0, 10**max_digits -1)
+            b = self.rng.randint(0, 10**max_digits -1)
+            text = format_problem(a, b, task, fixed_width, max_digits)
+            full_ids = self.tokenizer.encode(text, add_bos=True, add_eos=True)
+            target_ids = full_ids[1:]
+            input_ids = full_ids[:-1]
+
+            # if the input_ids is longer than max_seq_len, skip the example
+            if len(input_ids) > max_seq_len:
+                continue
+            else:
+                loss_mask = [1] * len(input_ids) + [0] * (max_seq_len - len(input_ids))
+                input_ids = input_ids + [self.tokenizer.stoi[SpecialTokens.pad]] * (max_seq_len - len(input_ids))
+                target_ids = target_ids + [self.tokenizer.stoi[SpecialTokens.pad]] * (max_seq_len - len(target_ids))
+            self.examples.append(ArithmeticExample(text, input_ids, target_ids, loss_mask))
 
     def __len__(self) -> int:
         """Return number of examples."""
@@ -118,7 +154,18 @@ class ArithmeticDataset(Dataset):
             Convert stored lists to tensors and pad them to max_seq_len.
         """
 
-        raise NotImplementedError
+        example = self.examples[idx]
+        input_ids = torch.tensor(example.input_ids, dtype=torch.long)
+        target_ids = torch.tensor(example.target_ids, dtype=torch.long)
+        loss_mask = torch.tensor(example.loss_mask, dtype=torch.float16)
+        # text = example.text
+        return {
+            # "text": text,
+            "input_ids": input_ids,
+            "target_ids": target_ids,
+            "loss_mask": loss_mask
+        }
+        # raise NotImplementedError
 
 
 def make_batch(samples: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
@@ -133,5 +180,19 @@ def make_batch(samples: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor
             target_ids: [batch, seq_len]
             loss_mask: [batch, seq_len]
     """
+    input_ids = torch.stack([sample["input_ids"] for sample in samples])
+    target_ids = torch.stack([sample["target_ids"] for sample in samples])
+    loss_mask = torch.stack([sample["loss_mask"] for sample in samples])
+    return {
+        "input_ids": input_ids,
+        "target_ids": target_ids,
+        "loss_mask": loss_mask
+    }
 
-    raise NotImplementedError
+
+if __name__ == "__main__":
+    tokenizer = CharTokenizer()
+    dataset = ArithmeticDataset(tokenizer, size=10, task="add", max_digits=2, fixed_width=False, max_seq_len=16, seed=0)
+    print(dataset[0])
+    batch = make_batch(dataset)
+    print(batch)
