@@ -28,8 +28,8 @@ class DataConfig:
     task: str = "add"
     max_digits: int = 2
     fixed_width: bool = False
-    train_size: int = 20_000
-    val_size: int = 1_000
+    train_size: int = 20000
+    val_size: int = 1000
     max_seq_len: int = 16
 
 
@@ -100,5 +100,15 @@ def load_config(path: str | Path) -> ExperimentConfig:
     TODO:
         Implement YAML loading and nested dataclass construction.
     """
+    with open(path, "r") as f:
+        raw = yaml.safe_load(f)
+    
+    return ExperimentConfig(
+        seed=raw.get("seed", 0),
+        device=raw.get("device", 0),
+        data=DataConfig(**raw.get("data", {})),
+        model=ModelConfig(**raw.get("model", {})),
+        train=TrainConfig(**raw.get("train", {})),
+    )
 
-    raise NotImplementedError("TODO: parse YAML into ExperimentConfig")
+    # raise NotImplementedError("TODO: parse YAML into ExperimentConfig")

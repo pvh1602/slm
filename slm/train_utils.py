@@ -30,10 +30,24 @@ def save_checkpoint(path: str, model: torch.nn.Module, extra: dict) -> None:
         extra: Extra metadata, such as config and tokenizer vocab.
     """
 
-    raise NotImplementedError("TODO: torch.save state_dict and metadata")
+    torch.save({
+        "model_state_dict": model.state_dict(),
+        **extra,
+    }, path)
+
+    # raise NotImplementedError("TODO: torch.save state_dict and metadata")
 
 
 def load_checkpoint(path: str, map_location: str | torch.device = "cpu") -> dict:
     """Load checkpoint dictionary."""
 
-    raise NotImplementedError("TODO: torch.load checkpoint")
+    checkpoint = torch.load(path, map_location)
+    return checkpoint
+
+    # raise NotImplementedError("TODO: torch.load checkpoint")
+
+
+def evaluate(model, dataloader):
+    """Evaluate the model"""
+
+    raise NotImplementedError()

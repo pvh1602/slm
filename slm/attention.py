@@ -111,7 +111,7 @@ class CausalSelfAttention(nn.Module):
             k_len = q_len
 
         # Compute scaled dot-product attention.
-        attn_score = einops.einsum(q, k_all, 'b n q_l h, b n k_l h -> b n q_l k_l') / torch.sqrt(self.head_dim)
+        attn_score = einops.einsum(q, k_all, 'b n q_l h, b n k_l h -> b n q_l k_l') / (self.head_dim ** 0.5)
 
         # Add casual mask
         attn_mask = build_causal_mask(q_len, k_len, x.device, x.dtype, past_len)
@@ -125,9 +125,11 @@ class CausalSelfAttention(nn.Module):
         if self.dropout is not None:
             attn_score = self.dropout(attn_score)
         
-        attn_weight = einops.einsum(attn_score, v_all, 'b n q_len k_len, b n l h -> b n q_len h')
+        attn_weight = einops.einsum(attn_score, v_all, 'b n q k, b n k h -> b n q h')
 
-        attn_weight = einops.arrange(attn_weight, 'b n q_len h -> b q_len (n h)')
+        # Merge heads
+        attn_weight = einops.rearrange(attn_weight, 'b n q h -> b q (n h)')
+
         attn_weight = self.out_proj(attn_weight)
 
         return attn_weight
@@ -179,7 +181,7 @@ def build_causal_mask(
 
     # If using cache, current query row i corresponds to absolute cache index past_len + i
     allowed = k_pos <= (past_len + q_pos)
-    mask = torch.ones((q_len, k_len), device=device, dtype=dtype)
+    mask = torch.zeros((q_len, k_len), device=device, dtype=dtype)
     mask = mask.masked_fill(~allowed, value=float('-inf'))
     
     return mask[None, None, :, :]
